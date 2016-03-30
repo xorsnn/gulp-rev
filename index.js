@@ -40,11 +40,21 @@ function getManifestFile(opts, cb) {
 	});
 }
 
-function transformFilename(file) {
+function transformFilename(file, par) {
 	// save the old path for later
 	file.revOrigPath = file.path;
 	file.revOrigBase = file.base;
-	file.revHash = revHash(file.contents);
+
+    // replace revHash with our custom string 
+    if (par) {
+        if (par.customRev) {
+            file.revHash = par.customRev;
+        }
+    }
+
+    if (!file.revHash) {
+    	file.revHash = revHash(file.contents);
+    }
 
 	file.path = modifyFilename(file.path, function (filename, extension) {
 		var extIndex = filename.indexOf('.');
@@ -57,7 +67,7 @@ function transformFilename(file) {
 	});
 }
 
-var plugin = function () {
+var plugin = function (par) {
 	var sourcemaps = [];
 	var pathMap = {};
 
@@ -80,7 +90,8 @@ var plugin = function () {
 		}
 
 		var oldPath = file.path;
-		transformFilename(file);
+		transformFilename(file, par);
+
 		pathMap[oldPath] = file.revHash;
 
 		cb(null, file);
@@ -105,7 +116,7 @@ var plugin = function () {
 				var hash = pathMap[reverseFilename];
 				file.path = revPath(file.path.replace(/\.map$/, ''), hash) + '.map';
 			} else {
-				transformFilename(file);
+				transformFilename(file, par);
 			}
 
 			this.push(file);
@@ -122,7 +133,7 @@ plugin.manifest = function (pth, opts) {
 
 	opts = objectAssign({
 		path: 'rev-manifest.json',
-		merge: false
+		merge: false,
 	}, opts, pth);
 
 	var manifest = {};
